@@ -1,0 +1,9 @@
+%% This is a scratch pad for running erlang code
+%% Everything is saved
+
+
+%%requires paragraph.erl, html_processor.erl, rdf_processor.erl.
+%% Ensure you have the correct paths in html_processor.erl and rdf_processor.erl. You will need to aquire and unpack the tar file here: http://www.gutenberg.org/wiki/Gutenberg:Feeds
+%%Create and process files for Author AuthorName
+Works = rdf_processor:find_author_works("Dickens, Charles"),
+html_processor:process_file_numbers(Works).
