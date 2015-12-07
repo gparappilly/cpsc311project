@@ -12,12 +12,16 @@
 %document storage location: C:\Users\Grant\Erlang Workspace\DocumentProcessor\Documents
 process_file_test()->
 	{ok, File} = file:read_file("C:\\Users\\Grant\\Erlang Workspace\\cpsc311project\\src\\Practice.txt"),
-	process_paragraphs(remove_rn(File),"Practice").
+	process_paragraphs(remove_rn(File),"Practice", "CHAPTER").
 
 %FilePath is the directory that the file is in. Name is the name of the file, without extension ("practice", "testFile", etc).
 process_file(FilePath,Name)->
 	{ok, File} = file:read_file(string:concat(string:concat(FilePath,Name),".txt")),
-	process_paragraphs(remove_rn(File),Name).
+	case string:str(binary_to_list(File), "\r\nCHAPTER") of
+		0->Split = "\r\n\r\n\r\n[IVXL]+(.|  )";
+		_Else->Split = "CHAPTER"
+	end,
+	process_paragraphs(remove_rn(File),Name, Split).
 
 remove_preface_etc(FullFilePath)->
 	{ok, File} = file:read_file(FullFilePath),
@@ -39,7 +43,11 @@ get_start(File)->
 						0 ->
 							case string:str(File, "\r\n\r\nSTAVE ONE") of
 								0->
-									1;
+									case string:str(File, "\r\n\r\nI.") of
+										0->
+											1;
+										N->
+											N end;
 								N->
 									N end;
 						N->
@@ -49,17 +57,23 @@ get_start(File)->
 		N->
 			N end.
 
-process_paragraphs(Document,Name)->
-	Paragraphs = split(Document, "CHAPTER",[{return,list}]),
+process_paragraphs(Document,Name,Split)->
+	Paragraphs = split(Document, Split,[{return,list}]),
 	write_files(lists:map(fun remove_rn/1, Paragraphs),string:concat(Name,"_"),"0").
 
 %DIR is the location that you want to write the individual paragraph files to.
 write_files([],_,_)->ok;
 write_files([ Head |Paragraphs], Name, Num)->
-	DIR = "C:\\Users\\Grant\\Erlang Workspace\\cpsc311project\\Documents\\",  %%Where you want the PARSED documents to be stored
-	file:write_file(string:concat(string:concat(DIR, string:concat(Name, Num)),".txt"), Head),
-	{N,_} = string:to_integer(Num),
-	write_files(Paragraphs, Name, integer_to_list(N+1)).
+	Length = length(Head),
+	if
+		Length > 50 ->
+			DIR = "C:\\Users\\Grant\\Erlang Workspace\\cpsc311project\\Documents\\",  %%Where you want the PARSED documents to be stored
+			file:write_file(string:concat(string:concat(DIR, string:concat(Name, Num)),".txt"), Head),
+			{N,_} = string:to_integer(Num),
+			write_files(Paragraphs, Name, integer_to_list(N+1));
+		true->
+			write_files(Paragraphs, Name, Num)
+			end.
 
 remove_rn(Document)->
 	 replace(Document,"\r\n"," ",[{return,list}]).
