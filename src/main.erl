@@ -12,6 +12,7 @@
 run_network(AuthorName)->
 	Works = rdf_processor:find_author_works("Dickens, Charles"),
 	html_processor:process_file_numbers(Works),
+	Files = 
 	stats:chapter_stats(Text)
 
 all_stats([])->[];

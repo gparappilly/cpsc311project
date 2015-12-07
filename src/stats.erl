@@ -1,7 +1,6 @@
-%% @author Fabian Volz
 
 -module(stats).
--export([parse/1, statistics/1, map_merge/1, unzip4/1, chapter_stats/1]).
+-export([parse/1, statistics/1, map_merge/1, unzip4/1, chapter_stats/1, stats_/1]).
 
 % Input: Character Ch
 % Output: true if Ch is a letter; Ch if Ch is a special character; false otherwise
@@ -26,11 +25,12 @@ parse_([Ch|Rest], Word, Alpha, Result) -> case isalpha(Ch) of
                                          end.
 
 % Computes basic statistics.
-stats([], CountMap, WordLengthSum, WordCount, SentenceLength) -> {CountMap, WordLengthSum, WordCount, SentenceLength};
+% SentenceLength is reversed.
+stats([], CountMap, WordLengthSum, WordCount, SentenceLength) -> {CountMap, WordLengthSum, WordCount, lists:nthtail(1, SentenceLength)};
 stats([T|Rest], CountMap, WordLengthSum, WordCount, SentenceLength) -> NewCountMap = maps:put(T, maps:get(T, CountMap, 0) + 1, CountMap),
                                                                        [CurrentLength|RestSL] = SentenceLength,
                                                                        case T of {word, Word} -> stats(Rest, NewCountMap, WordLengthSum + length(Word), WordCount + 1, [CurrentLength+1|RestSL]);
-                                                                           {char, $.} -> stats(Rest, NewCountMap, WordLengthSum, WordCount, [0|SentenceLength]);
+                                                                           {char, Ch} when Ch == $. orelse Ch == $? orelse Ch == $! -> stats(Rest, NewCountMap, WordLengthSum, WordCount, [0|SentenceLength]);
                                                                            _Else -> stats(Rest, NewCountMap, WordLengthSum, WordCount, SentenceLength) end.
 
 mean(Xs) -> lists:foldr(fun (X, Acc) -> X + Acc end, 0, Xs) / length(Xs).
@@ -73,7 +73,7 @@ map_merge([X|[]]) -> X;
 map_merge([X|[Y|Rest]]) -> map_merge([maps:fold(fun (K, V, AccIn) -> maps:put(K, maps:get(K, AccIn, 0) + V, AccIn) end, X, Y)|Rest]).
 
 % Parse text and compute stats.
-stats_(Text) -> stats(lists:reverse(parse(Text)), maps:new(), 0, 0, []).
+stats_(Text) -> stats(lists:reverse(parse(Text)), maps:new(), 0, 0, [0]).
 
 unzip4(List) -> lists:foldr(fun ({A, B, C, D}, {As, Bs, Cs, Ds}) -> {[A|As], [B|Bs], [C|Cs], [D|Ds]} end, {[],[],[],[]}, List).
 

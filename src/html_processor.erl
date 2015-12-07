@@ -15,16 +15,16 @@
 %% ====================================================================
 %Document Directory: C:\Users\Grant\Erlang Workspace\DocumentProcessor\Documents
 %download mirror: http://www.mirrorservice.org/sites/ftp.ibiblio.org/pub/docs/books/gutenberg/
--export([process_file_numbers/1]).
+-export([process_file_numbers/2]).
 
 % Input: list of Natural, the file numbers of the desired documents.
 % Downloads, processes and writes the files to location DIR.
-process_file_numbers([])->inets:stop(),
+process_file_numbers([],_)->inets:stop(),
 						  ok;
-process_file_numbers([Head|Tail])->
+process_file_numbers([Head|Tail], DIR)->
 	inets:start(),
 	Mirror = "http://www.mirrorservice.org/sites/ftp.ibiblio.org/pub/docs/books/gutenberg/",  %% don't change this
-	DIR = "C:\\Users\\Grant\\Erlang Workspace\\cpsc311project\\Documents",  %% Where you want the ORIGINAL, downloaded documents to be stored
+	%%DIR = "C:\\Users\\Grant\\Erlang Workspace\\cpsc311project\\Documents",  %% Where you want the ORIGINAL, downloaded documents to be stored
 	Name = integer_to_list(Head),
 	ShortPath = string:concat(string:concat(DIR,"\\"),Name),
 	FilePath = string:concat(ShortPath ,".txt"),
@@ -34,8 +34,8 @@ process_file_numbers([Head|Tail])->
     	paragraph:remove_preface_etc(FilePath),
 		paragraph:process_file(string:concat(DIR,"\\"), Name),
 		inets:stop(),
-		process_file_numbers(Tail);
-		true-> process_file_numbers(Tail)
+		process_file_numbers(Tail,DIR);
+		true-> process_file_numbers(Tail,DIR)
 		end.
 
 read_URL(URL)->
