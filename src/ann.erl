@@ -1,3 +1,5 @@
+%% @author Fabian Volz
+
 -module(ann).
 
 -export([myzip/2, testann/0, feed_forward/2, partitionList/2, compute_deltas_init/3, compute_deltas/3, train_network/3, train_repeatedly/4, repeat/2, repeat_each/2]).

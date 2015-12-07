@@ -1,3 +1,4 @@
+%% @author Fabian Volz
 
 -module(stats).
 -export([parse/1, statistics/1, map_merge/1, unzip4/1, chapter_stats/1]).
