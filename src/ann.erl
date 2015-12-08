@@ -1,12 +1,13 @@
-%% @author Fabian Volz
-
 -module(ann).
 
--export([myzip/2, testann/0, feed_forward/2, partitionList/2, compute_deltas_init/3, compute_deltas/3, train_network/3, train_repeatedly/4, repeat/2, repeat_each/2,training_session_parallelism/3]).
+-export([myzip/2, testann/0, feed_forward/2, feed_forward_/2, compute_training_error/3, partitionList/2, train_concurrently/4, training_session_parallelism/3, compute_deltas_init/3, compute_deltas/3, train_network/3, train_repeatedly/4, repeat/2, repeat_each/2]).
 
 -record(network, {layers, layersize, weights}).
 
 testann() -> #network{layers=3, layersize=[2,1,2], weights=[[1,1],[1,1]]}.
+
+% With lists.
+feed_forward_list(Network, Inputs) -> lists:map(fun (Input) -> lists:last(feed_forward_(Network, Input)) end, Inputs).
 
 % Weights is a list of lists
 feed_forward_({network, Layers, Layersize, Weights}, Input) -> feed_forward(#network{layers=Layers, layersize=Layersize, weights=lists:append(Weights)}, Input).
@@ -44,7 +45,7 @@ update_weights(Alpha, Output, Delta, Weights) -> map3(fun (Os, Ds, Ws) -> map3(f
 % Returns the network with updated weights.
 train_network({network, Layers, Layersize, Weights}, X, Y) -> Output = feed_forward(#network{layers=Layers, layersize=Layersize, weights=lists:append(Weights)}, X),
                                                               Deltas = compute_deltas_init(lists:reverse(Weights), lists:reverse(Output), Y),
-                                                              NewWeights = update_weights(0.01, Output, Deltas, Weights),
+                                                              NewWeights = update_weights(0.08, Output, Deltas, Weights),
                                                               #network{layers=Layers, layersize=Layersize, weights=NewWeights}.
 
 train_repeatedly(Network, X, Y, 0) -> {Network, feed_forward_(Network, X)};
@@ -55,16 +56,30 @@ training_session_parallelism_(Xs, Ys, N, 0) -> receive_results(Xs, Ys, N);
 training_session_parallelism_(Xs, Ys, N, K) -> InputLayerSize = length(lists:nth(1, Xs)),
                                                OutputLayerSize = length(lists:nth(1, Ys)),
                                                HiddenLayerSize = round(1.5*InputLayerSize),
-                                               Network = #network{layers=3, layersize=[InputLayerSize,HiddenLayerSize,OutputLayerSize], weights=[random_list(InputLayerSize*HiddenLayerSize), random_list(HiddenLayerSize*OutputLayerSize)]},
-                                               spawn(ann, train_concurrently, [Network, Xs, Ys]),
+                                               Network = #network{layers=3, layersize=[InputLayerSize, HiddenLayerSize, OutputLayerSize], weights=[random_list(InputLayerSize*HiddenLayerSize), random_list(HiddenLayerSize*OutputLayerSize)]},
+                                               spawn(ann, train_concurrently, [self(), Network, myzip(Xs, Ys), 500000]),
                                                training_session_parallelism_(Xs, Ys, N, K-1).
 
-receive_results(Xs, Ys, N) -> 0.
+train_concurrently(Process, Network, TrainingSamples, 0) -> Process ! Network;
+train_concurrently(Process, Network, TrainingSamples, N) -> train_concurrently(Process, lists:foldl(fun ({X, Y}, Acc) -> train_network(Acc, X, Y) end, Network, TrainingSamples), TrainingSamples, N-1).
+
+receive_results(Xs, Ys, N) -> receive_results_(Xs, Ys, N, 0, 9999999999).
+receive_results_(Xs, Ys, 0, BestNetwork, SmallestError) -> {BestNetwork, SmallestError};
+receive_results_(Xs, Ys, N, BestNetwork, SmallestError) -> receive
+                                                               NewNetwork -> NewError = compute_training_error(NewNetwork, Xs, Ys),
+                                                                             io:format(io_lib:format("new error: ~f~n", [NewError])),
+                                                               if NewError < SmallestError -> receive_results_(Xs, Ys, N-1, NewNetwork, NewError);
+                                                                  true -> receive_results_(Xs, Ys, N-1, BestNetwork, SmallestError)
+                                                               end
+                                                           end.
+
+compute_training_error(Network, [], []) -> 0;
+compute_training_error(Network, [X|Xs], [Y|Ys]) -> Output = lists:last(feed_forward_(Network, X)),
+                                                   lists:sum(map(fun (T, O) -> (T-O)*(T-O) end, Y, Output)) + compute_training_error(Network, Xs, Ys).
 
 % ----------------
 % Helper Functions
 % ----------------
-
 
 % N-fold concatenation of Xs
 repeat(Xs, 0) -> [];
